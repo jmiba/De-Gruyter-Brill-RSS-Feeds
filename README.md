@@ -1,5 +1,7 @@
 # De Gruyter/Brill RSS Feeds
 Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
+- [Bibliothek Forschung und Praxis (ahead-of-print)](https://www.degruyterbrill.com/journal/key/bfup/html)
+- [Information – Wissenschaft & Praxis](https://www.degruyterbrill.com/journal/key/iwp/html)
 
 ## Feeds currently available
 - Bibliothek - Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/bfp/rss.php](https://www.jensmittelbach.de/bfp/rss.php)
