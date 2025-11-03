@@ -4,7 +4,7 @@ Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
 - [Information – Wissenschaft & Praxis](https://www.degruyterbrill.com/journal/key/iwp/html)
 
 ## Feeds currently available
-- Bibliothek - Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/bfp/rss.php](https://www.jensmittelbach.de/bfp/rss.php)
+- Bibliothek Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/bfp/rss.php](https://www.jensmittelbach.de/bfp/rss.php)
 - Information - Wissenschaft & Praxis (ahead-of-print) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/iwp/rss.php](https://www.jensmittelbach.de/iwp/rss.php)
 
 Both feeds track the ahead-of-print sections provided by De Gruyter/Brill for their respective journals, parse the article abstracts and metadata, and expose them as RSS 2.0 feeds for easier consumption in feed readers.
