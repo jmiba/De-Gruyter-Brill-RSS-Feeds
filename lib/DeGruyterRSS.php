@@ -109,6 +109,8 @@ class DeGruyterRSS
         $title = preg_replace('/\\s*\\|\\s*De\\s*Gruyter.*/i', '', $title);
         $title = preg_replace('/\\s*\\|\\s*Brill.*/i', '', $title);
         $title = preg_replace('/\\s*[-–]\\s*Ahead of Print.*/i', '', $title);
+        // Remove trailing volume/issue fragments often appended on Ahead-of-Print pages
+        $title = preg_replace('/\\s+Volume\\s+\\d+\\s+Issue\\s+\\d+$/i', '', $title);
 
         return $this->normalizeWhitespace($title);
     }
