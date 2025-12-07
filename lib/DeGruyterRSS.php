@@ -8,13 +8,15 @@ class DeGruyterRSS
     private $cacheTime;
     private $baseUrl = "https://www.degruyterbrill.com";
     private $isAheadOfPrint = true; // Track source type
+    private $feedLanguage;
 
-    public function __construct($journalKey, $journalName = null, $cacheFile = "cache.json", $cacheTime = 86400)
+    public function __construct($journalKey, $journalName = null, $cacheFile = "cache.json", $cacheTime = 86400, $feedLanguage = "en-us")
     {
         $this->journalKey = $journalKey;
         $this->journalName = $journalName;
         $this->cacheFile = $cacheFile;
         $this->cacheTime = $cacheTime;
+        $this->feedLanguage = strtolower(trim($feedLanguage)) ?: "en-us";
     }
 
     public function getArticles()
@@ -30,6 +32,9 @@ class DeGruyterRSS
                     if (isset($cached["source"])) {
                         $this->isAheadOfPrint = $cached["source"] === "ahead-of-print";
                     }
+                    if (isset($cached["feedLanguage"])) {
+                        $this->feedLanguage = $cached["feedLanguage"];
+                    }
                     return $cached["articles"];
                 }
                 return $cached;
@@ -43,6 +48,7 @@ class DeGruyterRSS
             "journalName" => $this->journalName,
             "source" => $this->isAheadOfPrint ? "ahead-of-print" : "latest-issue",
             "fetchedAt" => time(),
+            "feedLanguage" => $this->feedLanguage,
             "articles" => $articles
         ];
 
@@ -357,11 +363,15 @@ class DeGruyterRSS
             $this->journalName = strtoupper($this->journalKey);
         }
 
+        $isGermanFeed = stripos($this->feedLanguage, "de") === 0;
+
         // Construct title and description dynamically
         $sourceLabel = $this->isAheadOfPrint ? "Ahead of Print" : "Latest Issue";
         $title = "$sourceLabel: {$this->journalName}";
-        $descriptionPrefix = $this->isAheadOfPrint ? "Ahead-of-print-Artikel" : "Artikel aus der neuesten Ausgabe";
-        $description = "$descriptionPrefix in {$this->journalName}";
+        $descriptionPrefix = $this->isAheadOfPrint
+            ? ($isGermanFeed ? "Ahead-of-print-Artikel" : "Ahead-of-print articles")
+            : ($isGermanFeed ? "Artikel aus der neuesten Ausgabe" : "Articles from the latest issue");
+        $description = $descriptionPrefix . " in {$this->journalName}";
         $link = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
 
         header("Content-Type: application/rss+xml; charset=UTF-8");
@@ -380,7 +390,7 @@ class DeGruyterRSS
         $rssFeed .= "<link>" . htmlspecialchars($link) . "</link>\n";
         $rssFeed .= "<atom:link href='" . htmlspecialchars($self_url) . "' rel='self' type='application/rss+xml'/>\n";
         $rssFeed .= "<description>" . htmlspecialchars($description) . "</description>\n";
-        $rssFeed .= "<language>de-de</language>\n";
+        $rssFeed .= "<language>" . htmlspecialchars($this->feedLanguage) . "</language>\n";
 
         foreach ($articles as $article) {
             $rssFeed .= "<item>\n";
@@ -396,9 +406,15 @@ class DeGruyterRSS
             $rssFeed .= "<pubDate>" . $article["pubDate"] . "</pubDate>\n";
 
             if ($article["lang"] == "en") {
-                $rssFeed .= "<description><![CDATA[<div>By <span id='creators' style='font-weight:900;'>{$authors}</span> (article in English). </div><div style='margin-top:1em'>{$article["abstractEn"]}</div><div style='margin-top:1em'>{$article["abstract"]}</div>]]></description>\n";
+                $intro = $isGermanFeed
+                    ? "Von <span id='creators' style='font-weight:900;'>{$authors}</span> (Beitrag auf Englisch). "
+                    : "By <span id='creators' style='font-weight:900;'>{$authors}</span> (article in English). ";
+                $rssFeed .= "<description><![CDATA[<div>{$intro}</div><div style='margin-top:1em'>{$article["abstractEn"]}</div><div style='margin-top:1em'>{$article["abstract"]}</div>]]></description>\n";
             } else {
-                $rssFeed .= "<description><![CDATA[<div>Von <span id='creators' style='font-weight:900;'>{$authors}</span> (Beitrag in Deutsch). </div><div style='margin-top:1em'>{$article["abstract"]}</div><div style='margin-top:1em'>{$article["abstractEn"]}</div>]]></description>\n";
+                $intro = $isGermanFeed
+                    ? "Von <span id='creators' style='font-weight:900;'>{$authors}</span> (Beitrag auf Deutsch). "
+                    : "By <span id='creators' style='font-weight:900;'>{$authors}</span> (article in German). ";
+                $rssFeed .= "<description><![CDATA[<div>{$intro}</div><div style='margin-top:1em'>{$article["abstract"]}</div><div style='margin-top:1em'>{$article["abstractEn"]}</div>]]></description>\n";
             }
 
             // add categories

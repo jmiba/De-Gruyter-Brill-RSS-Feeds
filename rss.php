@@ -6,11 +6,13 @@ $journalKey = isset($_GET['key']) ? trim($_GET['key']) : null;
 $journalName = isset($_GET['name']) ? trim($_GET['name']) : null;
 $ttl = isset($_GET['ttl']) ? (int) $_GET['ttl'] : 86400;
 $ttl = $ttl > 0 ? $ttl : 86400;
+$feedLanguage = isset($_GET['lang']) ? trim($_GET['lang']) : "en-us";
+$feedLanguage = $feedLanguage !== "" ? $feedLanguage : "en-us";
 
 if (!$journalKey) {
     header("Content-Type: text/plain; charset=UTF-8", true, 400);
     echo "Missing required query parameter: key\n";
-    echo "Example: rss.php?key=abitech&name=ABI+Technik\n";
+    echo "Example: rss.php?key=abitech&name=ABI+Technik&lang=en-us\n";
     exit;
 }
 
@@ -27,7 +29,7 @@ if (!is_dir($cacheDir)) {
 
 $cacheFile = $cacheDir . "/" . strtolower($journalKey) . ".json";
 
-$rss = new DeGruyterRSS($journalKey, $journalName ?: null, $cacheFile, $ttl);
+$rss = new DeGruyterRSS($journalKey, $journalName ?: null, $cacheFile, $ttl, $feedLanguage);
 $rss->generateRSS();
 
 ?>

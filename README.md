@@ -2,6 +2,8 @@
 [![DOI](https://zenodo.org/badge/1088901183.svg)](https://doi.org/10.5281/zenodo.17847065)
 
 Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
+
+## Pre-configured feeds for library and information science journals
 - [ABI Technik](https://www.degruyterbrill.com/journal/key/abitech/html)
 - [Bibliotheksdienst](https://www.degruyterbrill.com/journal/key/bd/html)
 - [Bibliothek Forschung und Praxis](https://www.degruyterbrill.com/journal/key/bfup/html)
@@ -21,10 +23,12 @@ rss.php?key=<de-gruyter-key>[&name=<optional display name>][&ttl=<cache seconds>
 - `key` (required): the De Gruyter journal key from the URL, e.g. `abitech` or `bfup`.
 - `name` (optional): friendly journal title. If omitted, the script tries to autodetect it from the fetched page.
 - `ttl` (optional): cache duration in seconds (defaults to 86400 = 24h).
+- `lang` (optional): feed language tag (defaults to `en-us`). Use `de-de` to keep descriptions in German.
 
 Examples:
 - [https://www.jensmittelbach.de/feeds/rss.php?key=actap&name=Analysis+of+Current+Trends+in+Antisemitism+-+ACTA](https://www.jensmittelbach.de/feeds/rss.php?key=actap&name=Analysis+of+Current+Trends+in+Antisemitism+-+ACTA)
 - [https://www.jensmittelbach.de/feeds/rss.php?key=zaa](https://www.jensmittelbach.de/feeds/rss.php?key=zaa) (uses autodetected name)
+- [https://www.jensmittelbach.de/feeds/rss.php?key=bfup&lang=de-de](https://www.jensmittelbach.de/feeds/rss.php?key=bfup&lang=de-de) (German feed descriptions)
 
 Cached responses for the generic endpoint live in `cache/<key>.json`.
 
