@@ -31,6 +31,28 @@ The feeds primarily track the **ahead-of-print** sections provided by De Gruyter
 
 The scripts parse the article abstracts and metadata and expose them as RSS 2.0 feeds for easier consumption in feed readers.
 
+## How It Works
+
+```mermaid
+flowchart TD
+    A["Feed Reader requests RSS"] --> B["PHP Script"]
+    B --> C{"Cache exists &<br/>< 24 hours old?"}
+    C -->|Yes| D["Return cached RSS"]
+    C -->|No| E{"Try Ahead of Print page"}
+    E -->|Found| F["Parse articles"]
+    E -->|404 Error| G["Fetch latest issue page"]
+    G --> H["Find 'View Latest Issue' link"]
+    H --> I["Parse articles from issue"]
+    F --> J{"Filter frontmatter"}
+    I --> J
+    J --> K["Fetch abstracts & metadata"]
+    K --> L["Generate RSS XML"]
+    L --> M["Cache for 24 hours"]
+    M --> N["Return RSS to reader"]
+    D --> O["Feed Reader displays articles"]
+    N --> O
+```
+
 ## Suggested feed readers
 - [Feedly](https://feedly.com) (Web, iOS, Android): great for cross-device syncing and powerful search/saved keyword alerts.
 - [Reeder](https://www.reederapp.com) (macOS, iOS): fast native interface, handy for offline reading and integration with multiple sync backends.
