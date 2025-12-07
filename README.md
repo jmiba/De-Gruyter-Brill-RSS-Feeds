@@ -13,6 +13,21 @@ Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
 - [Rundbrief Fotografie](https://www.degruyterbrill.com/journal/key/rbf/html)
 - [The African Book Publishing Record](https://www.degruyterbrill.com/journal/key/abpr/html)
 
+## Generic endpoint for any journal
+You can generate a feed for **any** De Gruyter/Brill journal by calling the new parameterised script:
+```
+rss.php?key=<de-gruyter-key>[&name=<optional display name>][&ttl=<cache seconds>]
+```
+- `key` (required): the De Gruyter journal key from the URL, e.g. `abitech` or `bfup`.
+- `name` (optional): friendly journal title. If omitted, the script tries to autodetect it from the fetched page.
+- `ttl` (optional): cache duration in seconds (defaults to 86400 = 24h).
+
+Examples:
+- `https://example.com/rss.php?key=abitech&name=ABI+Technik`
+- `https://example.com/rss.php?key=bfup` (uses autodetected name)
+
+Cached responses for the generic endpoint live in `cache/<key>.json`.
+
 ## Feeds currently available
 - ABI Technik (ahead-of-print) via `abitech/rss.php`, served at [https://www.jensmittelbach.de/feeds/abitech/rss.php](https://www.jensmittelbach.de/feeds/abitech/rss.php)
 - Bibliotheksdienst (ahead-of-print) via `bd/rss.php`, served at [https://www.jensmittelbach.de/feeds/bd/rss.php](https://www.jensmittelbach.de/feeds/bd/rss.php)

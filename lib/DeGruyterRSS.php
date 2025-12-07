@@ -9,15 +9,10 @@ class DeGruyterRSS
     private $baseUrl = "https://www.degruyterbrill.com";
     private $isAheadOfPrint = true; // Track source type
 
-    public function __construct($journalKey, $journalName, $cacheFile = "cache.json", $cacheTime = 86400)
+    public function __construct($journalKey, $journalName = null, $cacheFile = "cache.json", $cacheTime = 86400)
     {
         $this->journalKey = $journalKey;
         $this->journalName = $journalName;
-        $this->cacheFile = $cacheFile;
-        // Adjust cache file path to be relative to the script execution or absolute if needed
-        // For simplicity, we assume the script using this lib passes a path relative to itself
-        // or we handle paths carefully.
-        // Actually, let's just stick to the passed path.
         $this->cacheFile = $cacheFile;
         $this->cacheTime = $cacheTime;
     }
@@ -25,14 +20,33 @@ class DeGruyterRSS
     public function getArticles()
     {
         if (file_exists($this->cacheFile) && (time() - filemtime($this->cacheFile)) < $this->cacheTime) {
-            $articles = json_decode(file_get_contents($this->cacheFile), true);
-            if (is_array($articles) && count($articles) > 0) {
-                return $articles;
+            $cached = json_decode(file_get_contents($this->cacheFile), true);
+            if (is_array($cached) && count($cached) > 0) {
+                // Support new cache format with metadata or legacy array-only cache
+                if (isset($cached["articles"])) {
+                    if (!$this->journalName && isset($cached["journalName"])) {
+                        $this->journalName = $cached["journalName"];
+                    }
+                    if (isset($cached["source"])) {
+                        $this->isAheadOfPrint = $cached["source"] === "ahead-of-print";
+                    }
+                    return $cached["articles"];
+                }
+                return $cached;
             }
         }
 
         $articles = $this->fetchArticles();
-        file_put_contents($this->cacheFile, json_encode($articles, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+
+        $payload = [
+            "journalKey" => $this->journalKey,
+            "journalName" => $this->journalName,
+            "source" => $this->isAheadOfPrint ? "ahead-of-print" : "latest-issue",
+            "fetchedAt" => time(),
+            "articles" => $articles
+        ];
+
+        file_put_contents($this->cacheFile, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         return $articles;
     }
 
@@ -76,6 +90,57 @@ class DeGruyterRSS
             return "";
         }
         return preg_replace('/\s+/u', ' ', $text);
+    }
+
+    private function normalizeJournalTitle($title)
+    {
+        $title = $this->normalizeWhitespace($title);
+        if ($title === "") {
+            return "";
+        }
+
+        // Strip trailing brand fragments such as " | De Gruyter"
+        $title = preg_replace('/\\s*\\|\\s*De\\s*Gruyter.*/i', '', $title);
+        $title = preg_replace('/\\s*\\|\\s*Brill.*/i', '', $title);
+        $title = preg_replace('/\\s*[-–]\\s*Ahead of Print.*/i', '', $title);
+
+        return $this->normalizeWhitespace($title);
+    }
+
+    private function setJournalNameFromDom(DOMXPath $xpath)
+    {
+        if ($this->journalName) {
+            return;
+        }
+
+        $candidates = [];
+        $metaTitle = $xpath->query("//meta[@name='citation_journal_title']")->item(0);
+        if ($metaTitle) {
+            $candidates[] = $metaTitle->getAttribute("content");
+        }
+
+        $ogTitle = $xpath->query("//meta[@property='og:title']")->item(0);
+        if ($ogTitle) {
+            $candidates[] = $ogTitle->getAttribute("content");
+        }
+
+        $pageTitle = $xpath->query("//title")->item(0);
+        if ($pageTitle) {
+            $candidates[] = $pageTitle->textContent;
+        }
+
+        $headingTitle = $xpath->query("//h1[contains(@class, 'page-title') or contains(@class, 'journal-title')]")->item(0);
+        if ($headingTitle) {
+            $candidates[] = $headingTitle->textContent;
+        }
+
+        foreach ($candidates as $candidate) {
+            $normalized = $this->normalizeJournalTitle($candidate);
+            if ($normalized !== "") {
+                $this->journalName = $normalized;
+                return;
+            }
+        }
     }
 
     private function parseArticleHtml($html)
@@ -183,6 +248,7 @@ class DeGruyterRSS
                 libxml_clear_errors();
 
                 $xpath = new DOMXPath($dom);
+                $this->setJournalNameFromDom($xpath);
                 // Look for "View Latest Issue" link
                 // Selector based on observation: a#view-latest-issue
                 $latestIssueLink = $xpath->query("//a[@id='view-latest-issue']")->item(0);
@@ -207,6 +273,7 @@ class DeGruyterRSS
         libxml_clear_errors();
 
         $xpath = new DOMXPath($dom);
+        $this->setJournalNameFromDom($xpath);
 
         // Articles in regular issues also seem to use "ahead-of-print-item" class or similar structure, 
         // OR they might be in "issue-item". Let's check for both or general article containers.
@@ -286,6 +353,9 @@ class DeGruyterRSS
     public function generateRSS()
     {
         $articles = $this->getArticles();
+        if (!$this->journalName) {
+            $this->journalName = strtoupper($this->journalKey);
+        }
 
         // Construct title and description dynamically
         $sourceLabel = $this->isAheadOfPrint ? "Ahead of Print" : "Latest Issue";
