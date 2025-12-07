@@ -61,23 +61,14 @@ flowchart TD
 
 ## Setup on remote server
 
-1. Clone the repository to your web server.
-   
-   **Option A: Clone into a new subdirectory (Recommended):**
+1. Clone the repository to your web server:
    ```bash
    git clone https://github.com/jmiba/De-Gruyter-Brill-RSS-Feeds.git rss-feeds
    ```
-   
-   **Option B: Install into current directory (if not empty):**
-   ```bash
-   git init
-   git remote add origin https://github.com/jmiba/De-Gruyter-Brill-RSS-Feeds.git
-   git pull origin main
-   ```
+
 2. Ensure PHP is installed and the web server is configured to serve `.php` files.
-3. The scripts will be accessible at different URLs depending on your installation method:
-   
-   **If using Option A (subdirectory):**
+
+3. The scripts will be accessible at:
    - `https://example.com/rss-feeds/abitech/rss.php`
    - `https://example.com/rss-feeds/abpr/rss.php`
    - `https://example.com/rss-feeds/bd/rss.php`
@@ -88,18 +79,7 @@ flowchart TD
    - `https://example.com/rss-feeds/pdtc/rss.php`
    - `https://example.com/rss-feeds/rest/rss.php`
    - `https://example.com/rss-feeds/rbf/rss.php`
-   
-   **If using Option B (current directory):**
-   - `https://example.com/abitech/rss.php`
-   - `https://example.com/abpr/rss.php`
-   - `https://example.com/bd/rss.php`
-   - `https://example.com/bfp/rss.php`
-   - `https://example.com/iwp/rss.php`
-   - `https://example.com/libr/rss.php`
-   - `https://example.com/opis/rss.php`
-   - `https://example.com/pdtc/rss.php`
-   - `https://example.com/rest/rss.php`
-   - `https://example.com/rbf/rss.php`
+
 4. (Optional) If running via cron/CLI, ensure execution permissions:
    ```bash
    chmod +x abitech/rss.php abpr/rss.php bd/rss.php bfp/rss.php iwp/rss.php libr/rss.php opis/rss.php pdtc/rss.php rest/rss.php rbf/rss.php
