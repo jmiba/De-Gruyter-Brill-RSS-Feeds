@@ -233,6 +233,11 @@ class DeGruyterRSS
             $href = $linkNode->getAttribute("href");
             $link = strpos($href, "http") === 0 ? $href : $this->baseUrl . $href;
 
+            // EXCLUDE FRONTMATTER
+            if (stripos($link, "frontmatter") !== false) {
+                continue;
+            }
+
             $doi = $linkNode->getAttribute("data-doi");
             if (!$doi) {
                 $doiBtn = $xpath->query(".//button[contains(@class, 'cite-this-button-dgb')]", $item)->item(0);
