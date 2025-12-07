@@ -1,9 +1,13 @@
 # De Gruyter/Brill RSS Feeds
 Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
+- [ABI Technik](https://www.degruyterbrill.com/journal/key/abitech/html)
+- [Bibliotheksdienst](https://www.degruyterbrill.com/journal/key/bd/html)
 - [Bibliothek Forschung und Praxis](https://www.degruyterbrill.com/journal/key/bfup/html)
 - [Information – Wissenschaft & Praxis](https://www.degruyterbrill.com/journal/key/iwp/html)
 
 ## Feeds currently available
+- ABI Technik (ahead-of-print) via `abitech/rss.php`, served at [https://www.jensmittelbach.de/abitech/rss.php](https://www.jensmittelbach.de/abitech/rss.php)
+- Bibliotheksdienst (ahead-of-print) via `bd/rss.php`, served at [https://www.jensmittelbach.de/bd/rss.php](https://www.jensmittelbach.de/bd/rss.php)
 - Bibliothek Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/bfp/rss.php](https://www.jensmittelbach.de/bfp/rss.php)
 - Information - Wissenschaft & Praxis (ahead-of-print) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/iwp/rss.php](https://www.jensmittelbach.de/iwp/rss.php)
 
