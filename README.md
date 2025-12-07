@@ -1,4 +1,6 @@
 # De Gruyter/Brill RSS Feeds
+[![DOI](https://zenodo.org/badge/1088901183.svg)](https://doi.org/10.5281/zenodo.17847065)
+
 Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
 - [ABI Technik](https://www.degruyterbrill.com/journal/key/abitech/html)
 - [Bibliotheksdienst](https://www.degruyterbrill.com/journal/key/bd/html)
