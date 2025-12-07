@@ -28,7 +28,7 @@ rss.php?key=<de-gruyter-key>[&name=<optional display name>][&ttl=<cache seconds>
 Examples:
 - [https://www.jensmittelbach.de/feeds/rss.php?key=actap&name=Analysis+of+Current+Trends+in+Antisemitism+-+ACTA](https://www.jensmittelbach.de/feeds/rss.php?key=actap&name=Analysis+of+Current+Trends+in+Antisemitism+-+ACTA)
 - [https://www.jensmittelbach.de/feeds/rss.php?key=zaa](https://www.jensmittelbach.de/feeds/rss.php?key=zaa) (uses autodetected name)
-- [https://www.jensmittelbach.de/feeds/rss.php?key=bfup&lang=de-de](https://www.jensmittelbach.de/feeds/rss.php?key=bfup&lang=de-de) (German feed descriptions)
+- [https://www.jensmittelbach.de/feeds/rss.php?key=dsll&lang=de-de](https://www.jensmittelbach.de/feeds/rss.php?key=dsll&lang=de-de) (German feed descriptions)
 
 Cached responses for the generic endpoint live in `cache/<key>.json`.
 
