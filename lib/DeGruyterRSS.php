@@ -3,13 +3,16 @@
 class DeGruyterRSS
 {
     private $journalKey;
+    private $journalName;
     private $cacheFile;
     private $cacheTime;
     private $baseUrl = "https://www.degruyterbrill.com";
+    private $isAheadOfPrint = true; // Track source type
 
-    public function __construct($journalKey, $cacheFile = "cache.json", $cacheTime = 86400)
+    public function __construct($journalKey, $journalName, $cacheFile = "cache.json", $cacheTime = 86400)
     {
         $this->journalKey = $journalKey;
+        $this->journalName = $journalName;
         $this->cacheFile = $cacheFile;
         // Adjust cache file path to be relative to the script execution or absolute if needed
         // For simplicity, we assume the script using this lib passes a path relative to itself
@@ -169,6 +172,7 @@ class DeGruyterRSS
 
         // If Ahead of Print not found (404), try to find the latest issue
         if ((!$html || $responseCode === 404)) {
+            $this->isAheadOfPrint = false; // Mark as using latest issue
             $journalUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/html";
             $journalHtml = $this->fetchUrl($journalUrl);
 
@@ -279,9 +283,16 @@ class DeGruyterRSS
         return $articles;
     }
 
-    public function generateRSS($title, $description, $link)
+    public function generateRSS()
     {
         $articles = $this->getArticles();
+
+        // Construct title and description dynamically
+        $sourceLabel = $this->isAheadOfPrint ? "Ahead of Print" : "Latest Issue";
+        $title = "$sourceLabel: {$this->journalName}";
+        $descriptionPrefix = $this->isAheadOfPrint ? "Ahead-of-print-Artikel" : "Artikel aus der neuesten Ausgabe";
+        $description = "$descriptionPrefix in {$this->journalName}";
+        $link = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
 
         header("Content-Type: application/rss+xml; charset=UTF-8");
 
