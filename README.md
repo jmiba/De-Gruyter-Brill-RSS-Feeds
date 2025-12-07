@@ -53,7 +53,21 @@ The scripts parse the article abstracts and metadata and expose them as RSS 2.0 
    git pull origin main
    ```
 2. Ensure PHP is installed and the web server is configured to serve `.php` files.
-3. The scripts should be accessible at:
+3. The scripts will be accessible at different URLs depending on your installation method:
+   
+   **If using Option A (subdirectory):**
+   - `https://example.com/rss-feeds/abitech/rss.php`
+   - `https://example.com/rss-feeds/abpr/rss.php`
+   - `https://example.com/rss-feeds/bd/rss.php`
+   - `https://example.com/rss-feeds/bfp/rss.php`
+   - `https://example.com/rss-feeds/iwp/rss.php`
+   - `https://example.com/rss-feeds/libr/rss.php`
+   - `https://example.com/rss-feeds/opis/rss.php`
+   - `https://example.com/rss-feeds/pdtc/rss.php`
+   - `https://example.com/rss-feeds/rest/rss.php`
+   - `https://example.com/rss-feeds/rbf/rss.php`
+   
+   **If using Option B (current directory):**
    - `https://example.com/abitech/rss.php`
    - `https://example.com/abpr/rss.php`
    - `https://example.com/bd/rss.php`
@@ -64,8 +78,6 @@ The scripts parse the article abstracts and metadata and expose them as RSS 2.0 
    - `https://example.com/pdtc/rss.php`
    - `https://example.com/rest/rss.php`
    - `https://example.com/rbf/rss.php`
-   
-   *(Adjust URL path depending on Option A or B)*
 4. (Optional) If running via cron/CLI, ensure execution permissions:
    ```bash
    chmod +x abitech/rss.php abpr/rss.php bd/rss.php bfp/rss.php iwp/rss.php libr/rss.php opis/rss.php pdtc/rss.php rest/rss.php rbf/rss.php
