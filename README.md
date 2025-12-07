@@ -14,16 +14,16 @@ Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
 - [The African Book Publishing Record](https://www.degruyterbrill.com/journal/key/abpr/html)
 
 ## Feeds currently available
-- ABI Technik (ahead-of-print) via `abitech/rss.php`, served at [https://www.jensmittelbach.de/abitech/rss.php](https://www.jensmittelbach.de/abitech/rss.php)
-- Bibliotheksdienst (ahead-of-print) via `bd/rss.php`, served at [https://www.jensmittelbach.de/bd/rss.php](https://www.jensmittelbach.de/bd/rss.php)
-- Bibliothek Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/bfp/rss.php](https://www.jensmittelbach.de/bfp/rss.php)
-- Information - Wissenschaft & Praxis (ahead-of-print) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/iwp/rss.php](https://www.jensmittelbach.de/iwp/rss.php)
-- Libri (ahead-of-print) via `libr/rss.php`, served at [https://www.jensmittelbach.de/libr/rss.php](https://www.jensmittelbach.de/libr/rss.php)
-- Open Information Science (ahead-of-print) via `opis/rss.php`, served at [https://www.jensmittelbach.de/opis/rss.php](https://www.jensmittelbach.de/opis/rss.php)
-- Preservation, Digital Technology & Culture (ahead-of-print) via `pdtc/rss.php`, served at [https://www.jensmittelbach.de/pdtc/rss.php](https://www.jensmittelbach.de/pdtc/rss.php)
-- Restaurator (ahead-of-print) via `rest/rss.php`, served at [https://www.jensmittelbach.de/rest/rss.php](https://www.jensmittelbach.de/rest/rss.php)
-- Rundbrief Fotografie (ahead-of-print) via `rbf/rss.php`, served at [https://www.jensmittelbach.de/rbf/rss.php](https://www.jensmittelbach.de/rbf/rss.php)
-- The African Book Publishing Record (ahead-of-print) via `abpr/rss.php`, served at [https://www.jensmittelbach.de/abpr/rss.php](https://www.jensmittelbach.de/abpr/rss.php)
+- ABI Technik (ahead-of-print) via `abitech/rss.php`, served at [https://www.jensmittelbach.de/feeds/abitech/rss.php](https://www.jensmittelbach.de/feeds/abitech/rss.php)
+- Bibliotheksdienst (ahead-of-print) via `bd/rss.php`, served at [https://www.jensmittelbach.de/feeds/bd/rss.php](https://www.jensmittelbach.de/feeds/bd/rss.php)
+- Bibliothek Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/feeds/bfp/rss.php](https://www.jensmittelbach.de/feeds/bfp/rss.php)
+- Information - Wissenschaft & Praxis (ahead-of-print) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/feeds/iwp/rss.php](https://www.jensmittelbach.de/feeds/iwp/rss.php)
+- Libri (ahead-of-print) via `libr/rss.php`, served at [https://www.jensmittelbach.de/feeds/libr/rss.php](https://www.jensmittelbach.de/feeds/libr/rss.php)
+- Open Information Science (ahead-of-print) via `opis/rss.php`, served at [https://www.jensmittelbach.de/feeds/opis/rss.php](https://www.jensmittelbach.de/feeds/opis/rss.php)
+- Preservation, Digital Technology & Culture (ahead-of-print) via `pdtc/rss.php`, served at [https://www.jensmittelbach.de/feeds/pdtc/rss.php](https://www.jensmittelbach.de/feeds/pdtc/rss.php)
+- Restaurator (ahead-of-print) via `rest/rss.php`, served at [https://www.jensmittelbach.de/feeds/rest/rss.php](https://www.jensmittelbach.de/feeds/rest/rss.php)
+- Rundbrief Fotografie (ahead-of-print) via `rbf/rss.php`, served at [https://www.jensmittelbach.de/feeds/rbf/rss.php](https://www.jensmittelbach.de/feeds/rbf/rss.php)
+- The African Book Publishing Record (ahead-of-print) via `abpr/rss.php`, served at [https://www.jensmittelbach.de/feeds/abpr/rss.php](https://www.jensmittelbach.de/feeds/abpr/rss.php)
 
 The feeds primarily track the **ahead-of-print** sections provided by De Gruyter/Brill.
 > [!NOTE]
