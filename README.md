@@ -29,3 +29,11 @@ Both feeds track the ahead-of-print sections provided by De Gruyter/Brill for th
    ```bash
    chmod +x bfp/rss.php iwp/rss.php
    ```
+
+## Updating the installation
+
+If there are changes in the git repository, you can update the files on your server by running:
+
+```bash
+git pull origin main
+```
