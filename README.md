@@ -19,7 +19,7 @@ Both feeds track the ahead-of-print sections provided by De Gruyter/Brill for th
 
 1. Clone the repository to your web server's public directory:
    ```bash
-   git clone https://github.com/jmittelbach/De-Gruyter-Brill-RSS-Feeds.git .
+   git clone https://github.com/jmiba/De-Gruyter-Brill-RSS-Feeds.git .
    ```
 2. Ensure PHP is installed and the web server is configured to serve `.php` files.
 3. The scripts should be accessible at:
