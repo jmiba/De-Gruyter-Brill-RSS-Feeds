@@ -1,7 +1,7 @@
 <?php
 
 $cacheFile = "cache.json";
-$cacheTime = 3600*24; // 24 hours
+$cacheTime = 3600 * 24; // 24 hours
 
 if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
     $articles = json_decode(file_get_contents($cacheFile), true);
@@ -16,7 +16,8 @@ if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTime) {
 
 generateRSS($articles);
 
-function fetchUrl($url) {
+function fetchUrl($url, &$responseCode = null)
+{
     static $context = null;
 
     if ($context === null) {
@@ -30,15 +31,26 @@ function fetchUrl($url) {
                 ]),
                 "timeout" => 30,
                 "follow_location" => 1,
-                "max_redirects" => 5
+                "max_redirects" => 5,
+                "ignore_errors" => true
             ]
         ]);
     }
 
-    return @file_get_contents($url, false, $context);
+    $responseCode = 0;
+    $result = @file_get_contents($url, false, $context);
+
+    if (isset($http_response_header)) {
+        if (preg_match('#HTTP/\d+\.\d+ (\d+)#', $http_response_header[0], $matches)) {
+            $responseCode = intval($matches[1]);
+        }
+    }
+
+    return $result;
 }
 
-function normalizeWhitespace($text) {
+function normalizeWhitespace($text)
+{
     $text = trim($text);
     if ($text === "") {
         return "";
@@ -46,7 +58,8 @@ function normalizeWhitespace($text) {
     return preg_replace('/\s+/u', ' ', $text);
 }
 
-function parseArticleHtml($html) {
+function parseArticleHtml($html)
+{
     $dom = new DOMDocument;
     libxml_use_internal_errors(true);
     if (!$dom->loadHTML($html)) {
@@ -54,7 +67,7 @@ function parseArticleHtml($html) {
         return null;
     }
     libxml_clear_errors();
-    
+
     $xpath = new DOMXPath($dom);
 
     $articleNode = $xpath->query("//div[@id='text-container']//div[contains(@class, 'article')]")->item(0);
@@ -85,7 +98,8 @@ function parseArticleHtml($html) {
     ];
 }
 
-function fetchArticleAbstract($url) {
+function fetchArticleAbstract($url)
+{
     $default = [
         "abstract" => "No abstract available",
         "abstractEn" => "",
@@ -95,7 +109,7 @@ function fetchArticleAbstract($url) {
     ];
 
     $html = fetchUrl($url);
-    
+
     if (!$html) {
         return $default;
     }
@@ -126,27 +140,31 @@ function fetchArticleAbstract($url) {
     } else {
         $result["abstractEn"] = $result["abstract"];
     }
-    
+
     return $result;
 }
 
-function fetchDegruyterArticles() {
+function fetchDegruyterArticles()
+{
     $baseUrl = "https://www.degruyterbrill.com";
     $url = $baseUrl . "/journal/key/iwp/0/0/html";
-    $html = fetchUrl($url);
-    
+    $html = fetchUrl($url, $responseCode);
+
     if (!$html) {
+        if ($responseCode === 404) {
+            return [];
+        }
         die("Failed to retrieve content");
     }
-    
+
     $dom = new DOMDocument;
     libxml_use_internal_errors(true);
     $dom->loadHTML($html);
     libxml_clear_errors();
-    
+
     $xpath = new DOMXPath($dom);
     $items = $xpath->query("//div[contains(@class, 'ahead-of-print-item')]");
-    
+
     $articles = [];
     foreach ($items as $item) {
         $titleNode = $xpath->query(".//span[contains(@class, 'ahead-of-print-title')]", $item)->item(0);
@@ -173,7 +191,7 @@ function fetchDegruyterArticles() {
                 $doi = $doiBtn->getAttribute("data-doi");
             }
         }
-        
+
         $authorTag = $xpath->query(".//div[contains(@class, 'authors')]", $item)->item(0);
         if ($authorTag) {
             $authorsRaw = $authorTag->textContent;
@@ -184,13 +202,13 @@ function fetchDegruyterArticles() {
         } else {
             $authors = ["Unknown"];
         }
-        
+
         $dateTag = $xpath->query(".//div[contains(@class, 'date')]", $item)->item(0);
         $dateText = $dateTag ? trim($dateTag->textContent) : "";
         $pubDate = $dateText ? date(DATE_RSS, strtotime($dateText)) : date(DATE_RSS);
-        
+
         $articleData = fetchArticleAbstract($link);
-        
+
         $articles[] = [
             "title" => $title,
             "link" => $articleData["doi"] ? "https://doi.org/" . $articleData["doi"] : $link,
@@ -203,17 +221,18 @@ function fetchDegruyterArticles() {
             "guid" => $articleData["doi"] ? "https://doi.org/" . $articleData["doi"] : $link
         ];
     }
-    
+
     return $articles;
 }
 
-function generateRSS($articles) {
+function generateRSS($articles)
+{
     header("Content-Type: application/rss+xml; charset=UTF-8");
 
     // Generate self-referencing URL
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
     $self_url = $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    
+
     $rssFeed = "<?xml version='1.0' encoding='UTF-8'?>\n";
     $rssFeed .= "<rss version='2.0' xmlns:dc='http://purl.org/dc/elements/1.1/' xmlns:atom='http://www.w3.org/2005/Atom'>\n";
     $rssFeed .= "<channel>\n";
@@ -222,13 +241,13 @@ function generateRSS($articles) {
     $rssFeed .= "<atom:link href='" . htmlspecialchars($self_url) . "' rel='self' type='application/rss+xml'/>\n";
     $rssFeed .= "<description>Ahead-of-print-Artikel in Information – Wissenschaft &amp; Praxis</description>\n";
     $rssFeed .= "<language>de-de</language>\n";
-    
+
     foreach ($articles as $article) {
         $rssFeed .= "<item>\n";
         $rssFeed .= "<title>" . htmlspecialchars($article["title"]) . "</title>\n";
         $rssFeed .= "<link>" . htmlspecialchars($article["link"]) . "</link>\n";
         $rssFeed .= "<guid isPermaLink='true'>" . htmlspecialchars($article["guid"]) . "</guid>\n";
-        
+
         // add authors
         foreach ($article["authors"] as $author) {
             $rssFeed .= "<dc:creator>" . htmlspecialchars($author) . "</dc:creator>\n";
@@ -241,7 +260,7 @@ function generateRSS($articles) {
         } else {
             $rssFeed .= "<description><![CDATA[<div>Von <span id='creators' style='font-weight:900;'>{$authors}</span> (Beitrag in Deutsch). </div><div style='margin-top:1em'>{$article["abstract"]}</div><div style='margin-top:1em'>{$article["abstractEn"]}</div>]]></description>\n";
         }
-        
+
 
         // add categories
         foreach ($article["categories"] as $category) {
@@ -251,10 +270,10 @@ function generateRSS($articles) {
         $rssFeed .= "<dc:language>" . htmlspecialchars($article["lang"]) . "</dc:language>\n";
         $rssFeed .= "</item>\n";
     }
-    
+
     $rssFeed .= "</channel>\n";
     $rssFeed .= "</rss>\n";
-    
+
     echo $rssFeed;
 }
 

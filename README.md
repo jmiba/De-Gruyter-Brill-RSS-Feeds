@@ -14,3 +14,18 @@ Both feeds track the ahead-of-print sections provided by De Gruyter/Brill for th
 - [Reeder](https://www.reederapp.com) (macOS, iOS): fast native interface, handy for offline reading and integration with multiple sync backends.
 - [Inoreader](https://www.inoreader.com) (Web, mobile apps): advanced filtering, rules, and team sharing when monitoring many scholarly feeds.
 - [NetNewsWire](https://netnewswire.com) (macOS, iOS): lightweight open-source option that works well for a small number of personal feeds.
+
+## Setup on remote server
+
+1. Clone the repository to your web server's public directory:
+   ```bash
+   git clone https://github.com/jmittelbach/De-Gruyter-Brill-RSS-Feeds.git .
+   ```
+2. Ensure PHP is installed and the web server is configured to serve `.php` files.
+3. The scripts should be accessible at:
+   - `https://example.com/bfp/rss.php`
+   - `https://example.com/iwp/rss.php`
+4. (Optional) If running via cron/CLI, ensure execution permissions:
+   ```bash
+   chmod +x bfp/rss.php iwp/rss.php
+   ```
