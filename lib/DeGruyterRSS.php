@@ -163,14 +163,38 @@ class DeGruyterRSS
 
     private function fetchArticles()
     {
+        // Try Ahead of Print first
         $url = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
         $html = $this->fetchUrl($url, $responseCode);
 
-        if (!$html) {
-            if ($responseCode === 404) {
-                return [];
+        // If Ahead of Print not found (404), try to find the latest issue
+        if ((!$html || $responseCode === 404)) {
+            $journalUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/html";
+            $journalHtml = $this->fetchUrl($journalUrl);
+
+            if ($journalHtml) {
+                $dom = new DOMDocument;
+                libxml_use_internal_errors(true);
+                $dom->loadHTML($journalHtml);
+                libxml_clear_errors();
+
+                $xpath = new DOMXPath($dom);
+                // Look for "View Latest Issue" link
+                // Selector based on observation: a#view-latest-issue
+                $latestIssueLink = $xpath->query("//a[@id='view-latest-issue']")->item(0);
+
+                if ($latestIssueLink) {
+                    $latestIssueHref = $latestIssueLink->getAttribute("href");
+                    $url = strpos($latestIssueHref, "http") === 0 ? $latestIssueHref : $this->baseUrl . $latestIssueHref;
+                    $html = $this->fetchUrl($url);
+                }
             }
-            die("Failed to retrieve content");
+        }
+
+        if (!$html) {
+            // If still no content (neither AoP nor Latest Issue found/loaded), return empty or die
+            // Returning empty array is safer than dying to avoid breaking feed readers completely
+            return [];
         }
 
         $dom = new DOMDocument;
@@ -179,7 +203,16 @@ class DeGruyterRSS
         libxml_clear_errors();
 
         $xpath = new DOMXPath($dom);
+
+        // Articles in regular issues also seem to use "ahead-of-print-item" class or similar structure, 
+        // OR they might be in "issue-item". Let's check for both or general article containers.
+        // The grep check showed "ahead-of-print-item" present in issue page. 
+        // However, if that class is NOT used, we might need a fallback selector.
         $items = $xpath->query("//div[contains(@class, 'ahead-of-print-item')]");
+
+        // If no items found with that class, try specific issue item class if different.
+        // Based on standard De Gruyter pages, sometimes they are just under main content.
+        // But since grep found "ahead-of-print-item", we treat them as same for now.
 
         $articles = [];
         foreach ($items as $item) {

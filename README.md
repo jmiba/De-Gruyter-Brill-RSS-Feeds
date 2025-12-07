@@ -11,7 +11,11 @@ Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
 - Bibliothek Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/bfp/rss.php](https://www.jensmittelbach.de/bfp/rss.php)
 - Information - Wissenschaft & Praxis (ahead-of-print) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/iwp/rss.php](https://www.jensmittelbach.de/iwp/rss.php)
 
-Both feeds track the ahead-of-print sections provided by De Gruyter/Brill for their respective journals, parse the article abstracts and metadata, and expose them as RSS 2.0 feeds for easier consumption in feed readers.
+The feeds primarily track the **ahead-of-print** sections provided by De Gruyter/Brill.
+> [!NOTE]
+> **Fallback Mechanism**: If the "Ahead of Print" section is empty or unavailable for a journal, the script automaticaly falls back to fetching articles from the **latest published issue**. This ensures the feed remains active and provides content even when no articles are currently in the "Ahead of Print" queue.
+
+The scripts parse the article abstracts and metadata and expose them as RSS 2.0 feeds for easier consumption in feed readers.
 
 ## Suggested feed readers
 - [Feedly](https://feedly.com) (Web, iOS, Android): great for cross-device syncing and powerful search/saved keyword alerts.
@@ -21,17 +25,29 @@ Both feeds track the ahead-of-print sections provided by De Gruyter/Brill for th
 
 ## Setup on remote server
 
-1. Clone the repository to your web server's public directory:
+1. Clone the repository to your web server.
+   
+   **Option A: Clone into a new subdirectory (Recommended):**
    ```bash
-   git clone https://github.com/jmiba/De-Gruyter-Brill-RSS-Feeds.git .
+   git clone https://github.com/jmiba/De-Gruyter-Brill-RSS-Feeds.git rss-feeds
+   ```
+   
+   **Option B: Install into current directory (if not empty):**
+   ```bash
+   git init
+   git remote add origin https://github.com/jmiba/De-Gruyter-Brill-RSS-Feeds.git
+   git pull origin main
    ```
 2. Ensure PHP is installed and the web server is configured to serve `.php` files.
 3. The scripts should be accessible at:
+   - `https://example.com/abitech/rss.php`
+   - `https://example.com/bd/rss.php`
    - `https://example.com/bfp/rss.php`
    - `https://example.com/iwp/rss.php`
+   *(Adjust URL path depending on Option A or B)*
 4. (Optional) If running via cron/CLI, ensure execution permissions:
    ```bash
-   chmod +x bfp/rss.php iwp/rss.php
+   chmod +x abitech/rss.php bd/rss.php bfp/rss.php iwp/rss.php
    ```
 
 ## Updating the installation
