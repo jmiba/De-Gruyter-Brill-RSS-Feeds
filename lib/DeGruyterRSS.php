@@ -368,8 +368,8 @@ class DeGruyterRSS
         $isGermanFeed = stripos($this->feedLanguage, "de") === 0;
 
         // Construct title and description dynamically
-        $sourceLabel = $this->isAheadOfPrint ? "Ahead of Print" : "Latest Issue";
-        $title = "$sourceLabel: {$this->journalName}";
+        $sourceLabel = $this->isAheadOfPrint ? "(Ahead of Print)" : "(Latest Issue)";
+        $title = "{$this->journalName} $sourceLabel";
         $descriptionPrefix = $this->isAheadOfPrint
             ? ($isGermanFeed ? "Ahead-of-print-Artikel" : "Ahead-of-print articles")
             : ($isGermanFeed ? "Artikel aus der neuesten Ausgabe" : "Articles from the latest issue");
