@@ -4,16 +4,22 @@
 Scrapes webpages of De Gruyter/Brill and turns them into RSS feeds.
 
 ## Pre-configured feeds for library and information science journals
-- [ABI Technik](https://www.degruyterbrill.com/journal/key/abitech/html)
-- [Bibliotheksdienst](https://www.degruyterbrill.com/journal/key/bd/html)
-- [Bibliothek Forschung und Praxis](https://www.degruyterbrill.com/journal/key/bfup/html)
-- [Information – Wissenschaft & Praxis](https://www.degruyterbrill.com/journal/key/iwp/html)
-- [Libri](https://www.degruyterbrill.com/journal/key/libr/html)
-- [Open Information Science](https://www.degruyterbrill.com/journal/key/opis/html)
-- [Preservation, Digital Technology & Culture](https://www.degruyterbrill.com/journal/key/pdtc/html)
-- [Restaurator](https://www.degruyterbrill.com/journal/key/rest/html)
-- [Rundbrief Fotografie](https://www.degruyterbrill.com/journal/key/rbf/html)
-- [The African Book Publishing Record](https://www.degruyterbrill.com/journal/key/abpr/html)
+- [ABI Technik](https://www.degruyterbrill.com/journal/key/abitech/html) via `abitech/rss.php`, served at [https://www.jensmittelbach.de/feeds/abitech/rss.php](https://www.jensmittelbach.de/feeds/abitech/rss.php)
+- [Bibliotheksdienst](https://www.degruyterbrill.com/journal/key/bd/html) via `bd/rss.php`, served at [https://www.jensmittelbach.de/feeds/bd/rss.php](https://www.jensmittelbach.de/feeds/bd/rss.php)
+- [Bibliothek Forschung und Praxis](https://www.degruyterbrill.com/journal/key/bfup/html) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/feeds/bfp/rss.php](https://www.jensmittelbach.de/feeds/bfp/rss.php)
+- [Information – Wissenschaft & Praxis](https://www.degruyterbrill.com/journal/key/iwp/html) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/feeds/iwp/rss.php](https://www.jensmittelbach.de/feeds/iwp/rss.php)
+- [Libri](https://www.degruyterbrill.com/journal/key/libr/html) via `libr/rss.php`, served at [https://www.jensmittelbach.de/feeds/libr/rss.php](https://www.jensmittelbach.de/feeds/libr/rss.php)
+- [Open Information Science](https://www.degruyterbrill.com/journal/key/opis/html) via `opis/rss.php`, served at [https://www.jensmittelbach.de/feeds/opis/rss.php](https://www.jensmittelbach.de/feeds/opis/rss.php)
+- [Preservation, Digital Technology & Culture](https://www.degruyterbrill.com/journal/key/pdtc/html) via `pdtc/rss.php`, served at [https://www.jensmittelbach.de/feeds/pdtc/rss.php](https://www.jensmittelbach.de/feeds/pdtc/rss.php)
+- [Restaurator](https://www.degruyterbrill.com/journal/key/rest/html) via `rest/rss.php`, served at [https://www.jensmittelbach.de/feeds/rest/rss.php](https://www.jensmittelbach.de/feeds/rest/rss.php)
+- [Rundbrief Fotografie](https://www.degruyterbrill.com/journal/key/rbf/html) via `rbf/rss.php`, served at [https://www.jensmittelbach.de/feeds/rbf/rss.php](https://www.jensmittelbach.de/feeds/rbf/rss.php)
+- [The African Book Publishing Record](https://www.degruyterbrill.com/journal/key/abpr/html) via `abpr/rss.php`, served at [https://www.jensmittelbach.de/feeds/abpr/rss.php](https://www.jensmittelbach.de/feeds/abpr/rss.php)
+
+The feeds primarily track the **ahead-of-print** sections provided by De Gruyter/Brill.
+> [!NOTE]
+> **Fallback Mechanism**: If the "Ahead of Print" section is empty or unavailable for a journal, the script automaticaly falls back to fetching articles from the **latest published issue**. This ensures the feed remains active and provides content even when no articles are currently in the "Ahead of Print" queue.
+
+The scripts parse the article abstracts and metadata and expose them as RSS 2.0 feeds for easier consumption in feed readers.
 
 ## Generic endpoint for any journal
 You can generate a feed for **any** De Gruyter/Brill journal by calling the new parameterised script:
@@ -31,24 +37,6 @@ Examples:
 - [https://www.jensmittelbach.de/feeds/rss.php?key=dsll&lang=de-de](https://www.jensmittelbach.de/feeds/rss.php?key=dsll&lang=de-de) (German feed descriptions)
 
 Cached responses for the generic endpoint live in `cache/<key>.json`.
-
-## Feeds currently available
-- ABI Technik (ahead-of-print) via `abitech/rss.php`, served at [https://www.jensmittelbach.de/feeds/abitech/rss.php](https://www.jensmittelbach.de/feeds/abitech/rss.php)
-- Bibliotheksdienst (ahead-of-print) via `bd/rss.php`, served at [https://www.jensmittelbach.de/feeds/bd/rss.php](https://www.jensmittelbach.de/feeds/bd/rss.php)
-- Bibliothek Forschung und Praxis (ahead-of-print) via `bfp/rss.php`, served at [https://www.jensmittelbach.de/feeds/bfp/rss.php](https://www.jensmittelbach.de/feeds/bfp/rss.php)
-- Information - Wissenschaft & Praxis (ahead-of-print) via `iwp/rss.php`, served at [https://www.jensmittelbach.de/feeds/iwp/rss.php](https://www.jensmittelbach.de/feeds/iwp/rss.php)
-- Libri (ahead-of-print) via `libr/rss.php`, served at [https://www.jensmittelbach.de/feeds/libr/rss.php](https://www.jensmittelbach.de/feeds/libr/rss.php)
-- Open Information Science (ahead-of-print) via `opis/rss.php`, served at [https://www.jensmittelbach.de/feeds/opis/rss.php](https://www.jensmittelbach.de/feeds/opis/rss.php)
-- Preservation, Digital Technology & Culture (ahead-of-print) via `pdtc/rss.php`, served at [https://www.jensmittelbach.de/feeds/pdtc/rss.php](https://www.jensmittelbach.de/feeds/pdtc/rss.php)
-- Restaurator (ahead-of-print) via `rest/rss.php`, served at [https://www.jensmittelbach.de/feeds/rest/rss.php](https://www.jensmittelbach.de/feeds/rest/rss.php)
-- Rundbrief Fotografie (ahead-of-print) via `rbf/rss.php`, served at [https://www.jensmittelbach.de/feeds/rbf/rss.php](https://www.jensmittelbach.de/feeds/rbf/rss.php)
-- The African Book Publishing Record (ahead-of-print) via `abpr/rss.php`, served at [https://www.jensmittelbach.de/feeds/abpr/rss.php](https://www.jensmittelbach.de/feeds/abpr/rss.php)
-
-The feeds primarily track the **ahead-of-print** sections provided by De Gruyter/Brill.
-> [!NOTE]
-> **Fallback Mechanism**: If the "Ahead of Print" section is empty or unavailable for a journal, the script automaticaly falls back to fetching articles from the **latest published issue**. This ensures the feed remains active and provides content even when no articles are currently in the "Ahead of Print" queue.
-
-The scripts parse the article abstracts and metadata and expose them as RSS 2.0 feeds for easier consumption in feed readers.
 
 ## How It Works
 
