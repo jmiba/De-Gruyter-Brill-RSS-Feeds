@@ -484,6 +484,19 @@ class DeGruyterRSS
     public function generateRSS()
     {
         $articles = $this->getArticles();
+        usort($articles, function ($a, $b) {
+            $aTime = isset($a["pubDate"]) ? strtotime($a["pubDate"]) : 0;
+            $bTime = isset($b["pubDate"]) ? strtotime($b["pubDate"]) : 0;
+
+            if ($aTime === $bTime) {
+                $aTitle = isset($a["title"]) ? $a["title"] : "";
+                $bTitle = isset($b["title"]) ? $b["title"] : "";
+                return strcasecmp($aTitle, $bTitle);
+            }
+
+            // Descending: newest publication date first.
+            return $bTime <=> $aTime;
+        });
 
         if ($this->lastErrorType === "not_found") {
             header("Content-Type: text/plain; charset=UTF-8", true, 404);
