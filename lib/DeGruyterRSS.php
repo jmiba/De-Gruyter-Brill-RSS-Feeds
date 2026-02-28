@@ -9,6 +9,7 @@ class DeGruyterRSS
     private $baseUrl = "https://www.degruyterbrill.com";
     private $isAheadOfPrint = true; // Track source type
     private $feedLanguage;
+    private $lastErrorType = null; // null, "not_found", "upstream"
 
     public function __construct($journalKey, $journalName = null, $cacheFile = "cache.json", $cacheTime = 86400, $feedLanguage = "en-us")
     {
@@ -26,7 +27,8 @@ class DeGruyterRSS
             if (is_array($cached) && count($cached) > 0) {
                 // Support new cache format with metadata or legacy array-only cache
                 if (isset($cached["articles"])) {
-                    if (!$this->journalName && isset($cached["journalName"])) {
+                    $cachedArticles = is_array($cached["articles"]) ? $cached["articles"] : [];
+                    if (!$this->journalName && isset($cached["journalName"]) && !$this->isInvalidJournalTitle($cached["journalName"])) {
                         $this->journalName = $cached["journalName"];
                     }
                     if (isset($cached["source"])) {
@@ -35,9 +37,13 @@ class DeGruyterRSS
                     if (isset($cached["feedLanguage"])) {
                         $this->feedLanguage = $cached["feedLanguage"];
                     }
-                    return $cached["articles"];
+                    // Do not lock in empty feeds from transient upstream errors.
+                    if (count($cachedArticles) > 0) {
+                        return $cachedArticles;
+                    }
+                } elseif (count($cached) > 0) {
+                    return $cached;
                 }
-                return $cached;
             }
         }
 
@@ -52,7 +58,9 @@ class DeGruyterRSS
             "articles" => $articles
         ];
 
-        file_put_contents($this->cacheFile, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        if (count($articles) > 0) {
+            file_put_contents($this->cacheFile, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        }
         return $articles;
     }
 
@@ -78,10 +86,27 @@ class DeGruyterRSS
         }
 
         $responseCode = 0;
-        $result = @file_get_contents($url, false, $context);
+        $handle = @fopen($url, "rb", false, $context);
+        if ($handle === false) {
+            return false;
+        }
 
-        if (isset($http_response_header)) {
-            if (preg_match('#HTTP/\d+\.\d+ (\d+)#', $http_response_header[0], $matches)) {
+        $meta = stream_get_meta_data($handle);
+        $result = stream_get_contents($handle);
+        fclose($handle);
+
+        $responseHeaders = [];
+        if (isset($meta["wrapper_data"])) {
+            if (is_array($meta["wrapper_data"])) {
+                $responseHeaders = $meta["wrapper_data"];
+            } elseif (is_string($meta["wrapper_data"])) {
+                $responseHeaders = [$meta["wrapper_data"]];
+            }
+        }
+
+        // Multiple HTTP status lines can be present due to redirects.
+        foreach ($responseHeaders as $headerLine) {
+            if (preg_match('#HTTP/\d+\.\d+ (\d+)#', $headerLine, $matches)) {
                 $responseCode = intval($matches[1]);
             }
         }
@@ -115,6 +140,66 @@ class DeGruyterRSS
         return $this->normalizeWhitespace($title);
     }
 
+    private function isInvalidJournalTitle($title)
+    {
+        $normalized = strtolower($this->normalizeWhitespace($title));
+        if ($normalized === "") {
+            return true;
+        }
+
+        $badPhrases = [
+            "unspecified server error",
+            "internal server error",
+            "server error",
+            "page not found",
+            "access denied",
+            "temporarily unavailable"
+        ];
+
+        foreach ($badPhrases as $phrase) {
+            if (strpos($normalized, $phrase) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function detectPageErrorType(DOMXPath $xpath)
+    {
+        $texts = [];
+
+        $pageTitle = $xpath->query("//title")->item(0);
+        if ($pageTitle) {
+            $texts[] = $pageTitle->textContent;
+        }
+
+        $headingTitle = $xpath->query("//h1")->item(0);
+        if ($headingTitle) {
+            $texts[] = $headingTitle->textContent;
+        }
+
+        $allText = strtolower($this->normalizeWhitespace(implode(" ", $texts)));
+        if ($allText === "") {
+            return null;
+        }
+
+        if (strpos($allText, "page not found") !== false || strpos($allText, "404") !== false) {
+            return "not_found";
+        }
+
+        if (
+            strpos($allText, "unspecified server error") !== false ||
+            strpos($allText, "internal server error") !== false ||
+            strpos($allText, "temporarily unavailable") !== false ||
+            strpos($allText, "server error") !== false
+        ) {
+            return "upstream";
+        }
+
+        return null;
+    }
+
     private function setJournalNameFromDom(DOMXPath $xpath)
     {
         if ($this->journalName) {
@@ -144,11 +229,94 @@ class DeGruyterRSS
 
         foreach ($candidates as $candidate) {
             $normalized = $this->normalizeJournalTitle($candidate);
-            if ($normalized !== "") {
+            if ($normalized !== "" && !$this->isInvalidJournalTitle($normalized)) {
                 $this->journalName = $normalized;
                 return;
             }
         }
+    }
+
+    private function parseListingArticles($html)
+    {
+        if (!$html) {
+            return [];
+        }
+
+        $dom = new DOMDocument;
+        libxml_use_internal_errors(true);
+        if (!$dom->loadHTML($html)) {
+            libxml_clear_errors();
+            return [];
+        }
+        libxml_clear_errors();
+
+        $xpath = new DOMXPath($dom);
+        $this->setJournalNameFromDom($xpath);
+        $items = $xpath->query("//div[contains(@class, 'ahead-of-print-item')]");
+
+        $articles = [];
+        foreach ($items as $item) {
+            $titleNode = $xpath->query(".//span[contains(@class, 'ahead-of-print-title')]", $item)->item(0);
+            if (!$titleNode) {
+                continue;
+            }
+
+            $title = $this->normalizeWhitespace($titleNode->textContent);
+            $linkNode = $titleNode->parentNode;
+            while ($linkNode && $linkNode->nodeName !== "a") {
+                $linkNode = $linkNode->parentNode;
+            }
+            if (!$linkNode) {
+                continue;
+            }
+
+            $href = $linkNode->getAttribute("href");
+            $link = strpos($href, "http") === 0 ? $href : $this->baseUrl . $href;
+
+            // EXCLUDE FRONTMATTER
+            if (stripos($link, "frontmatter") !== false) {
+                continue;
+            }
+
+            $doi = $linkNode->getAttribute("data-doi");
+            if (!$doi) {
+                $doiBtn = $xpath->query(".//button[contains(@class, 'cite-this-button-dgb')]", $item)->item(0);
+                if ($doiBtn) {
+                    $doi = $doiBtn->getAttribute("data-doi");
+                }
+            }
+
+            $authorTag = $xpath->query(".//div[contains(@class, 'authors')]", $item)->item(0);
+            if ($authorTag) {
+                $authorsRaw = $authorTag->textContent;
+                $authors = array_filter(array_map('trim', preg_split('/[,;]+/', $authorsRaw)));
+                if (!$authors) {
+                    $authors = ["Unknown"];
+                }
+            } else {
+                $authors = ["Unknown"];
+            }
+
+            $dateTag = $xpath->query(".//div[contains(@class, 'date')]", $item)->item(0);
+            $dateText = $dateTag ? trim($dateTag->textContent) : "";
+            $pubDate = $dateText ? date(DATE_RSS, strtotime($dateText)) : date(DATE_RSS);
+
+            $articleData = $this->fetchArticleAbstract($link);
+
+            $articles[] = [
+                "title" => $title,
+                "link" => $articleData["doi"] ? "https://doi.org/" . $articleData["doi"] : $link,
+                "authors" => $authors,
+                "pubDate" => $pubDate,
+                "abstract" => $articleData["abstract"],
+                "abstractEn" => $articleData["abstractEn"],
+                "categories" => $articleData["categories"],
+                "lang" => $articleData["lang"],
+                "guid" => $articleData["doi"] ? "https://doi.org/" . $articleData["doi"] : $link
+            ];
+        }
+
+        return $articles;
     }
 
     private function parseArticleHtml($html)
@@ -239,128 +407,96 @@ class DeGruyterRSS
 
     private function fetchArticles()
     {
+        $this->lastErrorType = null;
+
         // Try Ahead of Print first
-        $url = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
-        $html = $this->fetchUrl($url, $responseCode);
+        $aopUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
+        $aopHtml = $this->fetchUrl($aopUrl, $responseCode);
+        $aopArticles = $this->parseListingArticles($aopHtml);
 
-        // If Ahead of Print not found (404), try to find the latest issue
-        if ((!$html || $responseCode === 404)) {
-            $this->isAheadOfPrint = false; // Mark as using latest issue
-            $journalUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/html";
-            $journalHtml = $this->fetchUrl($journalUrl);
-
-            if ($journalHtml) {
-                $dom = new DOMDocument;
-                libxml_use_internal_errors(true);
-                $dom->loadHTML($journalHtml);
-                libxml_clear_errors();
-
-                $xpath = new DOMXPath($dom);
-                $this->setJournalNameFromDom($xpath);
-                // Look for "View Latest Issue" link
-                // Selector based on observation: a#view-latest-issue
-                $latestIssueLink = $xpath->query("//a[@id='view-latest-issue']")->item(0);
-
-                if ($latestIssueLink) {
-                    $latestIssueHref = $latestIssueLink->getAttribute("href");
-                    $url = strpos($latestIssueHref, "http") === 0 ? $latestIssueHref : $this->baseUrl . $latestIssueHref;
-                    $html = $this->fetchUrl($url);
-                }
-            }
+        // Prefer AoP only if it really contains article items.
+        if (count($aopArticles) > 0) {
+            $this->isAheadOfPrint = true;
+            return $aopArticles;
         }
 
-        if (!$html) {
-            // If still no content (neither AoP nor Latest Issue found/loaded), return empty or die
-            // Returning empty array is safer than dying to avoid breaking feed readers completely
+        // Fall back to latest issue when AoP is unavailable or empty.
+        $this->isAheadOfPrint = false;
+        $journalUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/html";
+        $journalHtml = $this->fetchUrl($journalUrl, $journalResponseCode);
+
+        if ($journalResponseCode === 404) {
+            $this->lastErrorType = "not_found";
+            return [];
+        }
+        if ($journalResponseCode >= 500) {
+            $this->lastErrorType = "upstream";
             return [];
         }
 
-        $dom = new DOMDocument;
-        libxml_use_internal_errors(true);
-        $dom->loadHTML($html);
-        libxml_clear_errors();
+        if ($journalHtml) {
+            $dom = new DOMDocument;
+            libxml_use_internal_errors(true);
+            if ($dom->loadHTML($journalHtml)) {
+                libxml_clear_errors();
+                $xpath = new DOMXPath($dom);
+                $this->setJournalNameFromDom($xpath);
 
-        $xpath = new DOMXPath($dom);
-        $this->setJournalNameFromDom($xpath);
-
-        // Articles in regular issues also seem to use "ahead-of-print-item" class or similar structure, 
-        // OR they might be in "issue-item". Let's check for both or general article containers.
-        // The grep check showed "ahead-of-print-item" present in issue page. 
-        // However, if that class is NOT used, we might need a fallback selector.
-        $items = $xpath->query("//div[contains(@class, 'ahead-of-print-item')]");
-
-        // If no items found with that class, try specific issue item class if different.
-        // Based on standard De Gruyter pages, sometimes they are just under main content.
-        // But since grep found "ahead-of-print-item", we treat them as same for now.
-
-        $articles = [];
-        foreach ($items as $item) {
-            $titleNode = $xpath->query(".//span[contains(@class, 'ahead-of-print-title')]", $item)->item(0);
-            if (!$titleNode) {
-                continue;
-            }
-
-            $title = $this->normalizeWhitespace($titleNode->textContent);
-            $linkNode = $titleNode->parentNode;
-            while ($linkNode && $linkNode->nodeName !== "a") {
-                $linkNode = $linkNode->parentNode;
-            }
-            if (!$linkNode) {
-                continue;
-            }
-
-            $href = $linkNode->getAttribute("href");
-            $link = strpos($href, "http") === 0 ? $href : $this->baseUrl . $href;
-
-            // EXCLUDE FRONTMATTER
-            if (stripos($link, "frontmatter") !== false) {
-                continue;
-            }
-
-            $doi = $linkNode->getAttribute("data-doi");
-            if (!$doi) {
-                $doiBtn = $xpath->query(".//button[contains(@class, 'cite-this-button-dgb')]", $item)->item(0);
-                if ($doiBtn) {
-                    $doi = $doiBtn->getAttribute("data-doi");
+                $journalErrorType = $this->detectPageErrorType($xpath);
+                if ($journalErrorType === "not_found") {
+                    $this->lastErrorType = "not_found";
+                    return [];
                 }
-            }
+                if ($journalErrorType === "upstream") {
+                    $this->lastErrorType = "upstream";
+                    return [];
+                }
 
-            $authorTag = $xpath->query(".//div[contains(@class, 'authors')]", $item)->item(0);
-            if ($authorTag) {
-                $authorsRaw = $authorTag->textContent;
-                $authors = array_filter(array_map('trim', preg_split('/[,;]+/', $authorsRaw)));
-                if (!$authors) {
-                    $authors = ["Unknown"];
+                // Selector based on observation: a#view-latest-issue
+                $latestIssueLink = $xpath->query("//a[@id='view-latest-issue']")->item(0);
+                if ($latestIssueLink) {
+                    $latestIssueHref = $latestIssueLink->getAttribute("href");
+                    $issueUrl = strpos($latestIssueHref, "http") === 0 ? $latestIssueHref : $this->baseUrl . $latestIssueHref;
+                    $issueHtml = $this->fetchUrl($issueUrl, $issueResponseCode);
+                    if ($issueResponseCode >= 500) {
+                        $this->lastErrorType = "upstream";
+                        return [];
+                    }
+                    $issueArticles = $this->parseListingArticles($issueHtml);
+                    if (count($issueArticles) > 0) {
+                        return $issueArticles;
+                    }
                 }
             } else {
-                $authors = ["Unknown"];
+                libxml_clear_errors();
+                $this->lastErrorType = "upstream";
+                return [];
             }
-
-            $dateTag = $xpath->query(".//div[contains(@class, 'date')]", $item)->item(0);
-            $dateText = $dateTag ? trim($dateTag->textContent) : "";
-            $pubDate = $dateText ? date(DATE_RSS, strtotime($dateText)) : date(DATE_RSS);
-
-            $articleData = $this->fetchArticleAbstract($link);
-
-            $articles[] = [
-                "title" => $title,
-                "link" => $articleData["doi"] ? "https://doi.org/" . $articleData["doi"] : $link,
-                "authors" => $authors,
-                "pubDate" => $pubDate,
-                "abstract" => $articleData["abstract"],
-                "abstractEn" => $articleData["abstractEn"],
-                "categories" => $articleData["categories"],
-                "lang" => $articleData["lang"],
-                "guid" => $articleData["doi"] ? "https://doi.org/" . $articleData["doi"] : $link
-            ];
+        } else {
+            $this->lastErrorType = "upstream";
+            return [];
         }
 
-        return $articles;
+        // If neither source provided parseable article items, return empty.
+        return [];
     }
 
     public function generateRSS()
     {
         $articles = $this->getArticles();
+
+        if ($this->lastErrorType === "not_found") {
+            header("Content-Type: text/plain; charset=UTF-8", true, 404);
+            echo "Journal not found for key: " . $this->journalKey . "\n";
+            return;
+        }
+
+        if ($this->lastErrorType === "upstream") {
+            header("Content-Type: text/plain; charset=UTF-8", true, 503);
+            echo "Upstream source temporarily unavailable for key: " . $this->journalKey . "\n";
+            return;
+        }
+
         if (!$this->journalName) {
             $this->journalName = strtoupper($this->journalKey);
         }
