@@ -1,0 +1,99 @@
+{
+    "journalKey": "libr",
+    "journalName": "Libri",
+    "source": "ahead-of-print",
+    "fetchedAt": 1780134028,
+    "feedLanguage": "en-us",
+    "articles": [
+        {
+            "title": "The Dark Side of Virtual Governance: Customer Perceived Knowledge Hiding and Relational Conflict in Customer Relationship Management Systems",
+            "link": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0166\/html",
+            "authors": [
+                "Yu-Hao Zheng",
+                "Hongying Li",
+                "Tao Xu",
+                "Cai-Yao Li",
+                "Lu-Zi Lin"
+            ],
+            "pubDate": "Mon, 09 Mar 2026 00:00:00 +0000",
+            "abstract": "No abstract available",
+            "abstractEn": "",
+            "categories": [],
+            "lang": "unknown",
+            "guid": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0166\/html"
+        },
+        {
+            "title": "Boundary-Spanning Roles of University Public Information Officers Addressing the Demands of a Right to Information Act",
+            "link": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0095\/html",
+            "authors": [
+                "Shah Hussain",
+                "Jing Li",
+                "Andrew Madden"
+            ],
+            "pubDate": "Wed, 01 Apr 2026 00:00:00 +0000",
+            "abstract": "No abstract available",
+            "abstractEn": "",
+            "categories": [],
+            "lang": "unknown",
+            "guid": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0095\/html"
+        },
+        {
+            "title": "Developing and Validating a Comprehensive Assessment Tool for Learning Commons in University Libraries: A Confirmatory Factor Analysis Approach",
+            "link": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0098\/html",
+            "authors": [
+                "Xiaoyan Sun",
+                "Jhoanne C. Orillo",
+                "Joana D. Quinto"
+            ],
+            "pubDate": "Tue, 17 Mar 2026 00:00:00 +0000",
+            "abstract": "No abstract available",
+            "abstractEn": "",
+            "categories": [],
+            "lang": "unknown",
+            "guid": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0098\/html"
+        },
+        {
+            "title": "Ontology and General Theory: Toward Library Science as a Science",
+            "link": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0075\/html",
+            "authors": [
+                "William B Edgar"
+            ],
+            "pubDate": "Wed, 11 Mar 2026 00:00:00 +0000",
+            "abstract": "No abstract available",
+            "abstractEn": "",
+            "categories": [],
+            "lang": "unknown",
+            "guid": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0075\/html"
+        },
+        {
+            "title": "Big Data, Bigger Stories? The Journey from Data to Impact in Public Libraries",
+            "link": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0092\/html",
+            "authors": [
+                "Huimin Xu",
+                "David Lankes",
+                "Soo Young Rieh",
+                "Kenneth Fleischmann"
+            ],
+            "pubDate": "Mon, 09 Mar 2026 00:00:00 +0000",
+            "abstract": "No abstract available",
+            "abstractEn": "",
+            "categories": [],
+            "lang": "unknown",
+            "guid": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0092\/html"
+        },
+        {
+            "title": "Beyond Traditional Academia: Understanding Alternative-Academic Careers in the Chinese LIS Doctoral Job Market",
+            "link": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0067\/html",
+            "authors": [
+                "Ye Tian",
+                "Jingbei Zhang"
+            ],
+            "pubDate": "Thu, 21 May 2026 00:00:00 +0000",
+            "abstract": "No abstract available",
+            "abstractEn": "",
+            "categories": [],
+            "lang": "unknown",
+            "guid": "https:\/\/www.degruyterbrill.com\/document\/doi\/10.1515\/libri-2025-0067\/html"
+        }
+    ]
+}

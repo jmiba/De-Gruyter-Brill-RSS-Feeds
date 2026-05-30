@@ -22,8 +22,10 @@ class DeGruyterRSS
 
     public function getArticles()
     {
+        $staleArticles = [];
         if (file_exists($this->cacheFile) && (time() - filemtime($this->cacheFile)) < $this->cacheTime) {
             $cached = json_decode(file_get_contents($this->cacheFile), true);
+            $staleArticles = $this->extractCachedArticles($cached);
             if (is_array($cached) && count($cached) > 0) {
                 // Support new cache format with metadata or legacy array-only cache
                 if (isset($cached["articles"])) {
@@ -45,9 +47,29 @@ class DeGruyterRSS
                     return $cached;
                 }
             }
+        } elseif (file_exists($this->cacheFile)) {
+            $cached = json_decode(file_get_contents($this->cacheFile), true);
+            $staleArticles = $this->extractCachedArticles($cached);
+            if (is_array($cached) && count($cached) > 0 && isset($cached["articles"])) {
+                if (!$this->journalName && isset($cached["journalName"]) && !$this->isInvalidJournalTitle($cached["journalName"])) {
+                    $this->journalName = $cached["journalName"];
+                }
+                if (isset($cached["source"])) {
+                    $this->isAheadOfPrint = $cached["source"] === "ahead-of-print";
+                }
+                if (isset($cached["feedLanguage"])) {
+                    $this->feedLanguage = $cached["feedLanguage"];
+                }
+            }
         }
 
         $articles = $this->fetchArticles();
+        if (count($articles) === 0 && count($staleArticles) > 0 && $this->lastErrorType === "upstream") {
+            return $staleArticles;
+        }
+        if (count($articles) > 0 && count($staleArticles) > 0) {
+            $articles = $this->mergeMissingAbstractsFromCache($articles, $staleArticles);
+        }
 
         $payload = [
             "journalKey" => $this->journalKey,
@@ -64,7 +86,7 @@ class DeGruyterRSS
         return $articles;
     }
 
-    private function fetchUrl($url, &$responseCode = null)
+    private function fetchUrl($url, &$responseCode = null, &$responseHeaders = null)
     {
         static $context = null;
 
@@ -114,6 +136,30 @@ class DeGruyterRSS
         return $result;
     }
 
+    private function isHumanVerificationResponse($responseCode, array $responseHeaders = [], $html = "")
+    {
+        foreach ($responseHeaders as $headerLine) {
+            if (stripos($headerLine, 'x-amzn-waf-action: challenge') !== false) {
+                return true;
+            }
+        }
+
+        if (intval($responseCode) === 202 && $this->normalizeWhitespace($html) === "") {
+            return true;
+        }
+
+        $normalizedHtml = strtolower($this->normalizeWhitespace(strip_tags($html)));
+        if ($normalizedHtml === "") {
+            return false;
+        }
+
+        return strpos($normalizedHtml, 'human verification') !== false
+            || strpos($normalizedHtml, 'security check') !== false
+            || strpos($normalizedHtml, 'verify you are a human') !== false
+            || strpos($normalizedHtml, 'lassen sie uns prüfen, ob sie ein mensch sind') !== false
+            || strpos($normalizedHtml, 'führen sie die sicherheitsprüfung durch') !== false;
+    }
+
     private function normalizeWhitespace($text)
     {
         $text = trim($text);
@@ -121,6 +167,120 @@ class DeGruyterRSS
             return "";
         }
         return preg_replace('/\s+/u', ' ', $text);
+    }
+
+    private function extractDoiFromUrl($url)
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($path) || $path === "") {
+            return "";
+        }
+
+        if (preg_match('#/document/doi/(.+?)/(html|xml|pdf)$#', $path, $matches)) {
+            return rawurldecode($matches[1]);
+        }
+
+        return "";
+    }
+
+    private function cleanCrossrefAbstract($abstract)
+    {
+        if (!is_string($abstract) || trim($abstract) === "") {
+            return "";
+        }
+
+        $text = preg_replace('/<jats:title\b[^>]*>.*?<\/jats:title>/isu', ' ', $abstract);
+        $text = preg_replace('/<[^>]+>/', ' ', $text);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+        return $this->normalizeWhitespace($text);
+    }
+
+    private function fetchCrossrefMetadata($doi)
+    {
+        $default = [
+            "doi" => trim($doi),
+            "abstract" => "",
+            "lang" => "unknown"
+        ];
+
+        $doi = trim($doi);
+        if ($doi === "") {
+            return $default;
+        }
+
+        $context = stream_context_create([
+            "http" => [
+                "method" => "GET",
+                "header" => implode("\r\n", [
+                    "User-Agent: Mozilla/5.0 (compatible; DGB-RSS/1.0; +https://www.jensmittelbach.de/" . $this->journalKey . "/rss.php)",
+                    "Accept: application/json"
+                ]),
+                "timeout" => 30,
+                "ignore_errors" => true
+            ]
+        ]);
+
+        $json = @file_get_contents("https://api.crossref.org/works/" . rawurlencode($doi), false, $context);
+        $responseCode = 0;
+        if (function_exists('http_get_last_response_headers')) {
+            $responseHeaders = http_get_last_response_headers();
+            if (is_array($responseHeaders)) {
+                foreach ($responseHeaders as $headerLine) {
+                    if (preg_match('#HTTP/\d+\.\d+ (\d+)#', $headerLine, $matches)) {
+                        $responseCode = intval($matches[1]);
+                    }
+                }
+            }
+        }
+
+        if (!$json || $responseCode >= 400) {
+            return $default;
+        }
+
+        $data = json_decode($json, true);
+        if (!is_array($data) || !isset($data["message"]) || !is_array($data["message"])) {
+            return $default;
+        }
+
+        $message = $data["message"];
+        $language = isset($message["language"]) ? strtolower(trim($message["language"])) : "unknown";
+        if (!in_array($language, ["en", "de"], true)) {
+            $language = "unknown";
+        }
+
+        return [
+            "doi" => !empty($message["DOI"]) ? trim($message["DOI"]) : $default["doi"],
+            "abstract" => isset($message["abstract"]) ? $this->cleanCrossrefAbstract($message["abstract"]) : "",
+            "lang" => $language
+        ];
+    }
+
+    private function applyCrossrefFallback(array $result, $doi)
+    {
+        $crossref = $this->fetchCrossrefMetadata($doi);
+        if ($crossref["abstract"] === "") {
+            return $result;
+        }
+
+        $currentAbstract = isset($result["abstract"]) ? strtolower($this->normalizeWhitespace($result["abstract"])) : "";
+        if ($currentAbstract === "" || $currentAbstract === "no abstract available") {
+            $result["abstract"] = $crossref["abstract"];
+        }
+
+        if ($result["doi"] === "" && $crossref["doi"] !== "") {
+            $result["doi"] = $crossref["doi"];
+        }
+
+        if (($result["lang"] === "unknown" || $result["lang"] === "") && $crossref["lang"] !== "unknown") {
+            $result["lang"] = $crossref["lang"];
+        }
+
+        if ($result["abstractEn"] === "" && ($result["lang"] === "en" || $crossref["lang"] === "en")) {
+            $result["abstractEn"] = $crossref["abstract"];
+        }
+
+        return $result;
     }
 
     private function normalizeJournalTitle($title)
@@ -192,7 +352,12 @@ class DeGruyterRSS
             strpos($allText, "unspecified server error") !== false ||
             strpos($allText, "internal server error") !== false ||
             strpos($allText, "temporarily unavailable") !== false ||
-            strpos($allText, "server error") !== false
+            strpos($allText, "server error") !== false ||
+            strpos($allText, "human verification") !== false ||
+            strpos($allText, "security check") !== false ||
+            strpos($allText, "verify you are a human") !== false ||
+            strpos($allText, "lassen sie uns prüfen, ob sie ein mensch sind") !== false ||
+            strpos($allText, "führen sie die sicherheitsprüfung durch") !== false
         ) {
             return "upstream";
         }
@@ -301,7 +466,7 @@ class DeGruyterRSS
             $dateText = $dateTag ? trim($dateTag->textContent) : "";
             $pubDate = $dateText ? date(DATE_RSS, strtotime($dateText)) : date(DATE_RSS);
 
-            $articleData = $this->fetchArticleAbstract($link);
+            $articleData = $this->fetchArticleAbstract($link, $doi);
 
             $articles[] = [
                 "title" => $title,
@@ -319,6 +484,24 @@ class DeGruyterRSS
         return $articles;
     }
 
+    private function extractStructuredText(DOMXPath $xpath, DOMNode $node)
+    {
+        $parts = [];
+        $paragraphs = $xpath->query(".//p", $node);
+        foreach ($paragraphs as $paragraph) {
+            $text = $this->normalizeWhitespace($paragraph->textContent);
+            if ($text !== "") {
+                $parts[] = $text;
+            }
+        }
+
+        if (count($parts) > 0) {
+            return implode(" ", $parts);
+        }
+
+        return $this->normalizeWhitespace($node->textContent);
+    }
+
     private function parseArticleHtml($html)
     {
         $dom = new DOMDocument;
@@ -330,9 +513,13 @@ class DeGruyterRSS
         libxml_clear_errors();
 
         $xpath = new DOMXPath($dom);
+        if ($this->detectPageErrorType($xpath) !== null) {
+            return null;
+        }
 
         $articleNode = $xpath->query("//div[@id='text-container']//div[contains(@class, 'article')]")->item(0);
         $text = "";
+        $textEn = "";
         $lang = "unknown";
 
         if ($articleNode) {
@@ -341,8 +528,27 @@ class DeGruyterRSS
                 $lang = $langAttr;
             }
 
-            $bodyNode = $xpath->query(".//div[contains(@class, 'body')]", $articleNode)->item(0);
-            $text = $bodyNode ? $this->normalizeWhitespace($bodyNode->textContent) : $this->normalizeWhitespace($articleNode->textContent);
+            $abstractNode = $xpath->query(".//div[contains(concat(' ', normalize-space(@class), ' '), ' abstract ')]", $articleNode)->item(0);
+            if ($abstractNode) {
+                $text = $this->extractStructuredText($xpath, $abstractNode);
+            }
+
+            $abstractEnNode = $xpath->query(".//div[contains(concat(' ', normalize-space(@class), ' '), ' abstract-en ')]", $articleNode)->item(0);
+            if ($abstractEnNode) {
+                $textEn = $this->extractStructuredText($xpath, $abstractEnNode);
+            }
+
+            if ($text === "") {
+                $descriptionMeta = $xpath->query("//meta[@name='description']")->item(0);
+                if ($descriptionMeta) {
+                    $text = $this->normalizeWhitespace($descriptionMeta->getAttribute("content"));
+                }
+            }
+
+            if ($text === "") {
+                $bodyNode = $xpath->query(".//div[contains(@class, 'body')]", $articleNode)->item(0);
+                $text = $bodyNode ? $this->normalizeWhitespace($bodyNode->textContent) : $this->normalizeWhitespace($articleNode->textContent);
+            }
         }
 
         $doiMeta = $xpath->query("//meta[@name='citation_doi']")->item(0);
@@ -353,56 +559,140 @@ class DeGruyterRSS
 
         return [
             "text" => $text !== "" ? $text : "No abstract available",
+            "textEn" => $textEn,
             "lang" => $lang,
             "doi" => $doi,
             "section" => $section
         ];
     }
 
-    private function fetchArticleAbstract($url)
+    private function fetchArticleAbstract($url, $fallbackDoi = "")
     {
+        $resolvedDoi = trim($fallbackDoi);
+        if ($resolvedDoi === "") {
+            $resolvedDoi = $this->extractDoiFromUrl($url);
+        }
+
         $default = [
             "abstract" => "No abstract available",
             "abstractEn" => "",
             "lang" => "unknown",
-            "doi" => "",
+            "doi" => $resolvedDoi,
             "categories" => []
         ];
 
-        $html = $this->fetchUrl($url);
+        $html = $this->fetchUrl($url, $responseCode, $responseHeaders);
 
         if (!$html) {
-            return $default;
+            return $this->applyCrossrefFallback($default, $resolvedDoi);
+        }
+
+        if ($this->isHumanVerificationResponse($responseCode, $responseHeaders, $html)) {
+            return $this->applyCrossrefFallback($default, $resolvedDoi);
         }
 
         $parsed = $this->parseArticleHtml($html);
         if (!$parsed) {
-            return $default;
+            return $this->applyCrossrefFallback($default, $resolvedDoi);
         }
 
         $result = [
             "abstract" => $parsed["text"],
-            "abstractEn" => "",
+            "abstractEn" => $parsed["textEn"],
             "lang" => $parsed["lang"],
-            "doi" => $parsed["doi"],
+            "doi" => $parsed["doi"] !== "" ? $parsed["doi"] : $resolvedDoi,
             "categories" => $parsed["section"] !== "" ? [$parsed["section"]] : []
         ];
 
-        if ($result["lang"] !== "en") {
+        if ($result["lang"] === "en") {
+            $result["abstractEn"] = $result["abstract"];
+        } elseif ($result["abstractEn"] === "") {
             $separator = strpos($url, '?') === false ? '?' : '&';
             $englishUrl = $url . $separator . "lang=en";
-            $htmlEn = $this->fetchUrl($englishUrl);
-            if ($htmlEn) {
+            $htmlEn = $this->fetchUrl($englishUrl, $englishResponseCode, $englishResponseHeaders);
+            if ($htmlEn && !$this->isHumanVerificationResponse($englishResponseCode, $englishResponseHeaders, $htmlEn)) {
                 $parsedEn = $this->parseArticleHtml($htmlEn);
                 if ($parsedEn && strtolower($parsedEn["lang"]) === "en") {
                     $result["abstractEn"] = $parsedEn["text"];
                 }
             }
-        } else {
-            $result["abstractEn"] = $result["abstract"];
         }
 
-        return $result;
+        return $this->applyCrossrefFallback($result, $result["doi"]);
+    }
+
+    private function extractCachedArticles($cached)
+    {
+        if (!is_array($cached) || count($cached) === 0) {
+            return [];
+        }
+
+        if (isset($cached["articles"]) && is_array($cached["articles"])) {
+            return $cached["articles"];
+        }
+
+        return isset($cached[0]) ? $cached : [];
+    }
+
+    private function mergeMissingAbstractsFromCache(array $articles, array $staleArticles)
+    {
+        $staleByGuid = [];
+        $staleByLink = [];
+        $staleByTitle = [];
+
+        foreach ($staleArticles as $staleArticle) {
+            if (!is_array($staleArticle)) {
+                continue;
+            }
+
+            if (!empty($staleArticle["guid"])) {
+                $staleByGuid[$staleArticle["guid"]] = $staleArticle;
+            }
+            if (!empty($staleArticle["link"])) {
+                $staleByLink[$staleArticle["link"]] = $staleArticle;
+            }
+            if (!empty($staleArticle["title"])) {
+                $staleByTitle[strtolower($this->normalizeWhitespace($staleArticle["title"]))] = $staleArticle;
+            }
+        }
+
+        foreach ($articles as &$article) {
+            $abstract = isset($article["abstract"]) ? $this->normalizeWhitespace($article["abstract"]) : "";
+            if ($abstract !== "" && strtolower($abstract) !== "no abstract available") {
+                continue;
+            }
+
+            $titleKey = !empty($article["title"]) ? strtolower($this->normalizeWhitespace($article["title"])) : "";
+            $match = null;
+
+            if (!empty($article["guid"]) && isset($staleByGuid[$article["guid"]])) {
+                $match = $staleByGuid[$article["guid"]];
+            } elseif (!empty($article["link"]) && isset($staleByLink[$article["link"]])) {
+                $match = $staleByLink[$article["link"]];
+            } elseif ($titleKey !== "" && isset($staleByTitle[$titleKey])) {
+                $match = $staleByTitle[$titleKey];
+            }
+
+            if (!$match) {
+                continue;
+            }
+
+            if (!empty($match["abstract"]) && strtolower($this->normalizeWhitespace($match["abstract"])) !== "no abstract available") {
+                $article["abstract"] = $match["abstract"];
+            }
+            if (empty($article["abstractEn"]) && !empty($match["abstractEn"])) {
+                $article["abstractEn"] = $match["abstractEn"];
+            }
+            if ((empty($article["lang"]) || $article["lang"] === "unknown") && !empty($match["lang"])) {
+                $article["lang"] = $match["lang"];
+            }
+            if (empty($article["categories"]) && !empty($match["categories"])) {
+                $article["categories"] = $match["categories"];
+            }
+        }
+        unset($article);
+
+        return $articles;
     }
 
     private function fetchArticles()
@@ -411,7 +701,11 @@ class DeGruyterRSS
 
         // Try Ahead of Print first
         $aopUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
-        $aopHtml = $this->fetchUrl($aopUrl, $responseCode);
+        $aopHtml = $this->fetchUrl($aopUrl, $responseCode, $aopResponseHeaders);
+        if ($this->isHumanVerificationResponse($responseCode, $aopResponseHeaders, $aopHtml)) {
+            $this->lastErrorType = "upstream";
+            return [];
+        }
         $aopArticles = $this->parseListingArticles($aopHtml);
 
         // Prefer AoP only if it really contains article items.
@@ -423,10 +717,14 @@ class DeGruyterRSS
         // Fall back to latest issue when AoP is unavailable or empty.
         $this->isAheadOfPrint = false;
         $journalUrl = $this->baseUrl . "/journal/key/" . $this->journalKey . "/html";
-        $journalHtml = $this->fetchUrl($journalUrl, $journalResponseCode);
+        $journalHtml = $this->fetchUrl($journalUrl, $journalResponseCode, $journalResponseHeaders);
 
         if ($journalResponseCode === 404) {
             $this->lastErrorType = "not_found";
+            return [];
+        }
+        if ($this->isHumanVerificationResponse($journalResponseCode, $journalResponseHeaders, $journalHtml)) {
+            $this->lastErrorType = "upstream";
             return [];
         }
         if ($journalResponseCode >= 500) {
@@ -457,7 +755,11 @@ class DeGruyterRSS
                 if ($latestIssueLink) {
                     $latestIssueHref = $latestIssueLink->getAttribute("href");
                     $issueUrl = strpos($latestIssueHref, "http") === 0 ? $latestIssueHref : $this->baseUrl . $latestIssueHref;
-                    $issueHtml = $this->fetchUrl($issueUrl, $issueResponseCode);
+                    $issueHtml = $this->fetchUrl($issueUrl, $issueResponseCode, $issueResponseHeaders);
+                    if ($this->isHumanVerificationResponse($issueResponseCode, $issueResponseHeaders, $issueHtml)) {
+                        $this->lastErrorType = "upstream";
+                        return [];
+                    }
                     if ($issueResponseCode >= 500) {
                         $this->lastErrorType = "upstream";
                         return [];
@@ -524,6 +826,7 @@ class DeGruyterRSS
             : ($isGermanFeed ? "Artikel aus der neuesten Ausgabe" : "Articles from the latest issue");
         $description = $descriptionPrefix . " in {$this->journalName}";
         $link = $this->baseUrl . "/journal/key/" . $this->journalKey . "/0/0/html";
+        $channelDate = count($articles) > 0 ? $articles[0]["pubDate"] : date(DATE_RSS);
 
         header("Content-Type: application/rss+xml; charset=UTF-8");
 
@@ -542,6 +845,8 @@ class DeGruyterRSS
         $rssFeed .= "<atom:link href='" . htmlspecialchars($self_url) . "' rel='self' type='application/rss+xml'/>\n";
         $rssFeed .= "<description>" . htmlspecialchars($description) . "</description>\n";
         $rssFeed .= "<language>" . htmlspecialchars($this->feedLanguage) . "</language>\n";
+        $rssFeed .= "<pubDate>" . htmlspecialchars($channelDate) . "</pubDate>\n";
+        $rssFeed .= "<lastBuildDate>" . htmlspecialchars($channelDate) . "</lastBuildDate>\n";
 
         foreach ($articles as $article) {
             $rssFeed .= "<item>\n";
